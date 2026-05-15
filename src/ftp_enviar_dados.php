@@ -23,7 +23,7 @@ if(count($arquivosSql) == 0){
 foreach(glob(DIR_ORIGEM_DADOS . DS . "*.sql") as $arquivoSql){
 	$objLogSistema->logMsg("Arquivo de sql: {$arquivoSql}" );
 	
-	$dirArquivoSqlDestino = DIR_DESTINO_DADOS. '/' . basename($arquivoSql);
+	$dirArquivoSqlDestino = DIR_DESTINO_DADOS. DS . basename($arquivoSql);
 	
 					
 	$objLogSistema->logMsg('Mover aquivo - '.$arquivoSql . ' -> ' . $dirArquivoSqlDestino ); 

@@ -51,7 +51,7 @@ function getLotesCsv($csv){
 
 function getArquivosLote($dirLote){
 	$arquivos = array();
-	foreach(glob("{$dirLote}\\*.pdf") as $arquivo){
+	foreach(glob($dirLote.DS."*.pdf") as $arquivo){
 		$arquivos[] = basename($arquivo);
 	}
 	return $arquivos;

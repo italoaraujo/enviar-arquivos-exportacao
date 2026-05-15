@@ -18,7 +18,6 @@ class MoverArquivosFtp
 	protected function verificarConexao()
     {
         if (!$this->conexecao || !@ftp_raw($this->conexecao, "NOOP")) {
-			echo 'tentando conecta';exit();
             $this->conectar();
         }
     }
@@ -51,30 +50,37 @@ class MoverArquivosFtp
     public function copy($arquivoOrigem, $arquivoDestino)
     {
 		$this->verificarConexao();
+        //sleep(1);
         return ftp_put($this->conexecao,  $arquivoDestino, $arquivoOrigem, FTP_BINARY);
     }
 
 
-    public function fileExists($pastaArquivo)
+    public function folderExists($pasta)
     {
+
 		$this->verificarConexao();
-        $encontrado = false;
 
-        // Salvar configurações atuais
-        $reportingLevel = error_reporting();
+        $diretorioAtual = ftp_pwd($this->conexecao);
 
-        // Desativar avisos para a função específica
-        error_reporting($reportingLevel & ~E_WARNING);
+        if (@ftp_chdir($this->conexecao, $pasta)) {
 
-        if (ftp_chdir($this->conexecao, $pastaArquivo) || ftp_mdtm($this->conexecao, $pastaArquivo) != -1) {
-            $encontrado = true;
+            // volta para o diretório original
+            ftp_chdir($this->conexecao, $diretorioAtual);
+
+            return true;
         }
-        // Restaurar configurações
-        error_reporting($reportingLevel);
 
-        return $encontrado;
+        return false;
+    }
+
+    public function fileExists($arquivo)
+    {
+
+		$this->verificarConexao();
+        return ftp_size($this->conexecao, $arquivo) != -1;
     }
 	
+    
 	public function __destruct()
     {
         if ($this->conexao) {

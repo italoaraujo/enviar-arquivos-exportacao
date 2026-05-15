@@ -1,6 +1,9 @@
 <?php
 ini_set("default_charset", "UTF-8");
 set_time_limit(0);
+date_default_timezone_set('America/Fortaleza');
+
+
 
 //CARREGA CLASSES
 function __autoload($Class){

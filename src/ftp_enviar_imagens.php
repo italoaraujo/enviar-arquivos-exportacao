@@ -22,7 +22,8 @@ try{
 $lotes = array();	
 
 
-foreach(glob("{$pastaCsv}\\LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
+
+foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 	$totalSucesso = 0;
 	$lotes = array();
 	
@@ -33,28 +34,32 @@ foreach(glob("{$pastaCsv}\\LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 	$lotes = array_filter($lotes);
 	
 	foreach ($lotes as $lote){
+		
 		$nrLote = str_pad($lote,8,'0',STR_PAD_LEFT);
 		
-		$dirLoteOrigem = $dirClienteOrigem . '/' . $nrLote ;
-		$dirLoteDestino = $dirClienteDestino . '/' . $nrLote ;
+		$dirLoteOrigem = $dirClienteOrigem . DS . $nrLote ;
+		$dirLoteDestino = $dirClienteDestino . DS . $nrLote ;
 		
-		$arquivos = getArquivosLote($dirLoteOrigem);
+		$arquivos = getArquivosLote($dirLoteOrigem); 
 		
-		if(!$objMoverArquivos->fileExists($dirLoteDestino)){
+
+		if(!$objMoverArquivos->folderExists($dirLoteDestino)){
 			$objMoverArquivos->mkdir($dirLoteDestino);		
 		}
 		
-		if(!$objMoverArquivos->fileExists($dirLoteDestino)){
+		if(!$objMoverArquivos->folderExists($dirLoteDestino)){
 				$objLogSistema->logMsg('ERRO - Nao conseguio cria a pasta do lote no ftp');	
 				continue;		
 		}
 
+		
+	
 		foreach ($arquivos as $arquivoPdf){
 			$objLogSistema->logMsg("Lote: {$nrLote} Arquivo: {$arquivoPdf}" );
 			
-			$dirArquivoPdfOrigem = $dirLoteOrigem."/".$arquivoPdf;
+			$dirArquivoPdfOrigem = $dirLoteOrigem.DS.$arquivoPdf;
 		
-			$dirArquivoPdfDestino = $dirLoteDestino.'/'.$arquivoPdf;
+			$dirArquivoPdfDestino = $dirLoteDestino.DS.$arquivoPdf;
 			 
 			
 			# VERIFICA SE O ARQUIVO PDF DE ORIGEM EXISTE 
