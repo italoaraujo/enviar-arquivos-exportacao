@@ -15,7 +15,44 @@ try{
 	$objMoverArquivos = new MoverArquivosFtp(FTP_SERVER, FTP_PORT, FTP_USERNAME, FTP_PASSWORD);
 } catch (Exception $e) {
 	$objLogSistema->logMsg($e->getMessage());
-	exit();
+	//exit();
+}
+function enviarArquivoComTentativas($objMoverArquivos, $objLogSistema, $arquivoOrigem, $arquivoDestino, $totalTentativas = 3)
+{
+	for ($tentativa = 1; $tentativa <= $totalTentativas; ++$tentativa) {
+		$objLogSistema->logMsg("Tentativa {$tentativa}/{$totalTentativas} de copiar arquivo");
+
+		try {
+			sleep(2);
+			if ($objMoverArquivos->copy($arquivoOrigem, $arquivoDestino)) {
+				return true;
+			}
+		} catch (Exception $e) {
+			$objLogSistema->logMsg($e->getMessage());
+		}
+
+		if ($tentativa < $totalTentativas) {
+			$objLogSistema->logMsg('ERRO - Falha ao copiar arquivo. Reconectando ao FTP para tentar novamente');
+			try {
+				$objMoverArquivos->reconectar();
+			} catch (Exception $e) {
+				$objLogSistema->logMsg($e->getMessage());
+			}
+			sleep(2);
+		}
+	}
+
+	return false;
+}
+
+function gerarCsvLotesComFalha($pastaCsv, $lotesComFalha)
+{
+	$arquivoCsvFalhas = $pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_REENVIAR_".getTime().".csv";
+	if(file_put_contents($arquivoCsvFalhas, implode(PHP_EOL, $lotesComFalha).PHP_EOL) === false){
+		return false;
+	}
+
+	return $arquivoCsvFalhas;
 }
 
 
@@ -25,6 +62,8 @@ $lotes = array();
 
 foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 	$totalSucesso = 0;
+	$totalFalhas = 0;
+	$lotesComFalha = array();
 	$lotes = array();
 	
 	$objLogSistema->logMsg("Arquivo de csv: {$csv}" );
@@ -34,62 +73,109 @@ foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 	$lotes = array_filter($lotes);
 	
 	foreach ($lotes as $lote){
+		$loteFalhou = false;
 		
 		$nrLote = str_pad($lote,8,'0',STR_PAD_LEFT);
-		
+		$objLogSistema->logMsg("Inciando Lote: {$nrLote}" );
+
 		$dirLoteOrigem = $dirClienteOrigem . DS . $nrLote ;
 		$dirLoteDestino = $dirClienteDestino . DS . $nrLote ;
 		
 		$arquivos = getArquivosLote($dirLoteOrigem); 
-		
 
-		if(!$objMoverArquivos->folderExists($dirLoteDestino)){
-			$objMoverArquivos->mkdir($dirLoteDestino);		
+		try{
+			if(!$objMoverArquivos->folderExists($dirLoteDestino)){
+				$objMoverArquivos->mkdir($dirLoteDestino);		
+			}
+			
+			if(!$objMoverArquivos->folderExists($dirLoteDestino)){
+				$objLogSistema->logMsg('ERRO - Nao conseguio cria a pasta do lote no ftp');
+				++$totalFalhas;
+				$lotesComFalha[] = $lote;
+				$loteFalhou = true;
+				continue;
+			}
+
+		} catch (Exception $e) {
+		 	$objLogSistema->logMsg($e->getMessage());
+			$loteFalhou = true;
 		}
 		
-		if(!$objMoverArquivos->folderExists($dirLoteDestino)){
-				$objLogSistema->logMsg('ERRO - Nao conseguio cria a pasta do lote no ftp');	
-				continue;		
-		}
-
-		
-	
-		foreach ($arquivos as $arquivoPdf){
-			$objLogSistema->logMsg("Lote: {$nrLote} Arquivo: {$arquivoPdf}" );
-			
-			$dirArquivoPdfOrigem = $dirLoteOrigem.DS.$arquivoPdf;
-		
-			$dirArquivoPdfDestino = $dirLoteDestino.DS.$arquivoPdf;
-			 
-			
-			# VERIFICA SE O ARQUIVO PDF DE ORIGEM EXISTE 
-			if(file_exists($dirArquivoPdfOrigem)){
+		if(!$loteFalhou){
+			foreach ($arquivos as $arquivoPdf){
+				$objLogSistema->logMsg("Lote: {$nrLote} Arquivo: {$arquivoPdf}" );
 				
-				if(!$objMoverArquivos->fileExists($dirArquivoPdfDestino)){
+				$dirArquivoPdfOrigem = $dirLoteOrigem.DS.$arquivoPdf;
+			
+				$dirArquivoPdfDestino = $dirLoteDestino.DS.$arquivoPdf;
+				
+				
+				# VERIFICA SE O ARQUIVO PDF DE ORIGEM EXISTE 
+				if(file_exists($dirArquivoPdfOrigem)){
 					
-					$objLogSistema->logMsg('Mover aquivo - '.$dirArquivoPdfOrigem . ' -> ' . $dirArquivoPdfDestino ); 
-					
-					if($objMoverArquivos->copy($dirArquivoPdfOrigem, $dirArquivoPdfDestino)){
-						$objLogSistema->logMsg('Arquivo copiado com sucesso!');	
-						++$totalSucesso;					
+					$tamanhoArquivoOrigem = filesize($dirArquivoPdfOrigem);
+					try{
+						$tamanhoArquivoDestino = $objMoverArquivos->getFileSize($dirArquivoPdfDestino);
+					} catch (Exception $e) {
+						$objLogSistema->logMsg($e->getMessage());
+						$loteFalhou = true;
+						continue;
+					}
+
+					if($tamanhoArquivoOrigem != $tamanhoArquivoDestino){
+						
+						$objLogSistema->logMsg('Mover aquivo - '.$dirArquivoPdfOrigem . ' -> ' . $dirArquivoPdfDestino ); 
+
+						if($tamanhoArquivoDestino != -1){
+							$objLogSistema->logMsg('Arquivo no destino existe com tamanho diferente. Enviando novamente');
+						}
+						
+						if(enviarArquivoComTentativas($objMoverArquivos, $objLogSistema, $dirArquivoPdfOrigem, $dirArquivoPdfDestino)){
+							$objLogSistema->logMsg('Arquivo copiado com sucesso!');	
+							++$totalSucesso;					
+						} else {
+							$objLogSistema->logMsg('ERRO - Erro ao copiar arquivo depois das tentativas');
+							++$totalFalhas;
+							$loteFalhou = true;
+						}
+						
 					} else {
-						$objLogSistema->logMsg('ERRO - Erro ao copiar arquivo');
+						++$totalSucesso;
+						$objLogSistema->logMsg('O arquivo ja se encontra no destino');
 					}
 					
 				} else {
-					++$totalSucesso;
-					$objLogSistema->logMsg('O arquivo ja se encontra no destino');
-				}
+					$objLogSistema->logMsg('ERRO - Arquivo de origem nao encontrado');
+					++$totalFalhas;
+					$loteFalhou = true;
 				
-			} else {
-				$objLogSistema->logMsg('ERRO - Arquivo de origem nao encontrado');
-			  
+				}
 			}
 		}
+
+		if($loteFalhou){
+			$lotesComFalha[] = $lote;
+		}
 	}
-	if($totalSucesso > 0 || count($lotes) == 0 ){
+
+	$lotesComFalha = array_unique(array_filter($lotesComFalha));
+	$moveCsvOriginal = true;
+
+	if(count($lotesComFalha) > 0){
+		$csvFalhas = gerarCsvLotesComFalha($pastaCsv, $lotesComFalha);
+		if($csvFalhas){
+			$objLogSistema->logMsg("Arquivo csv com lotes com falha criado: {$csvFalhas}" );
+		} else {
+			$moveCsvOriginal = false;
+			$objLogSistema->logMsg('ERRO - Erro ao criar arquivo csv com lotes com falha. CSV original nao foi movido');
+		}
+	}
+
+	if($moveCsvOriginal){
 		$objLogSistema->logMsg("Mover arquivo de csv para pasta de processados: {$csv}" );
-		rename($csv, DIR_PROCESSADOS.DS.getTime().'_'.basename($csv) );
+		if(!rename($csv, DIR_PROCESSADOS.DS.getTime().'_'.basename($csv) )){
+			$objLogSistema->logMsg('ERRO - Erro ao mover arquivo de csv para pasta de processados');
+		}
 	}
 	$objLogSistema->logMsg('Fim do script');exit(); // linha temporaria , feita para executa so um arquivo por vez . Para evitar erro ao subir aquivos retroativo 
 	
