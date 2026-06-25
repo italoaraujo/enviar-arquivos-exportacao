@@ -28,7 +28,13 @@ class LogSistema {
 			echo $msg. PHP_EOL;;
 		}
     }
+	
+	function copiarArquivoLog($dirDestido){
+		echo "Copiar de {$this->arquivoLog} para {$dirDestido}".PHP_EOL;
+		copy($this->arquivoLog,$dirDestido);
+		echo PHP_EOL;
+		
+	}
+	
 
 }
-
-?>

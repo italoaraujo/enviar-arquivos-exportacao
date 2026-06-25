@@ -8,9 +8,10 @@ $dirClienteDestino = DIR_DESTINO_IMAGENS;
 $pastaCsv = DIR_ORIGEM_DADOS;
 $pastaCsvProcessados = DIR_PROCESSADOS;
 
-
+$arquivoLog = date( 'Y-m-d'). '-enviar-imagens-log.txt';
 $objLogSistema = new LogSistema( date( 'Y-m-d'). '-enviar-imagens-log.txt', true );
 $objLogSistema->logMsg('Iniciando script');
+
 try{
 	$objMoverArquivos = new MoverArquivosFtp(FTP_SERVER, FTP_PORT, FTP_USERNAME, FTP_PASSWORD);
 } catch (Exception $e) {
@@ -57,6 +58,16 @@ function gerarCsvLotesComFalha($pastaCsv, $lotesComFalha)
 
 $lotes = array();	
 
+try{
+	var_dump($dirClienteDestino);
+	if(!$objMoverArquivos->folderExists($dirClienteDestino)){
+		$objMoverArquivos->mkdir($dirClienteDestino);		
+	}
+	
+} catch (Exception $e) {
+	$objLogSistema->logMsg($e->getMessage());
+	exit();
+}
 
 
 foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
@@ -78,7 +89,7 @@ foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 		$objLogSistema->logMsg("Inciando Lote: {$nrLote}" );
 
 		$dirLoteOrigem = $dirClienteOrigem . DS . $nrLote ;
-		$dirLoteDestino = $dirClienteDestino . DS . $nrLote ;
+		$dirLoteDestino = $dirClienteDestino . "/" . $nrLote ;
 		
 		$arquivos = getArquivosLote($dirLoteOrigem); 
 
@@ -115,7 +126,7 @@ foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 			
 			$dirArquivoPdfOrigem = $dirLoteOrigem.DS.$arquivoPdf;
 		
-			$dirArquivoPdfDestino = $dirLoteDestino.DS.$arquivoPdf;
+			$dirArquivoPdfDestino = $dirLoteDestino."/".$arquivoPdf;
 			
 			
 			# VERIFICA SE O ARQUIVO PDF DE ORIGEM EXISTE 
@@ -146,7 +157,6 @@ foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 						++$totalFalhas;
 						$loteFalhou = true;
 					}
-					
 				} else {
 					++$totalSucesso;
 					$objLogSistema->logMsg('O arquivo ja se encontra no destino');
@@ -184,3 +194,6 @@ foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 }
 
 $objLogSistema->logMsg('Fim do script');
+
+
+$objLogSistema->copiarArquivoLog(DIR_LOGS.DS.$arquivoLog );
