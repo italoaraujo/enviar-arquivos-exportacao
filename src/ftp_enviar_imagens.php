@@ -59,7 +59,6 @@ function gerarCsvLotesComFalha($pastaCsv, $lotesComFalha)
 $lotes = array();	
 
 try{
-	var_dump($dirClienteDestino);
 	if(!$objMoverArquivos->folderExists($dirClienteDestino)){
 		$objMoverArquivos->mkdir($dirClienteDestino);		
 	}
