@@ -47,7 +47,7 @@ function enviarArquivoComTentativas($objMoverArquivos, $objLogSistema, $arquivoO
 
 function gerarCsvLotesComFalha($pastaCsv, $lotesComFalha)
 {
-	$arquivoCsvFalhas = $pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_REENVIAR_".getTime().".csv";
+	$arquivoCsvFalhas = $pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_REENVIAR_".getTime()."_".uniqid(rand(1000, 9999)).".csv";
 	if(file_put_contents($arquivoCsvFalhas, implode(PHP_EOL, $lotesComFalha).PHP_EOL) === false){
 		return false;
 	}
@@ -179,18 +179,19 @@ foreach(glob($pastaCsv.DS."LISTA_LOTES_PARA_DETRAN_*.csv") as $csv){
 	$lotesComFalha = array_unique(array_filter($lotesComFalha));
 
 	$objLogSistema->logMsg("Mover arquivo de csv para pasta de processados: {$csv}" );
-	if(rename($csv, DIR_PROCESSADOS.DS.getTime().'_'.basename($csv) )){
-		if(count($lotesComFalha) > 0){
-			$csvFalhas = gerarCsvLotesComFalha($pastaCsv, $lotesComFalha);
-			if($csvFalhas){
-				$objLogSistema->logMsg("Arquivo csv com lotes com falha criado: {$csvFalhas}" );
-			} else {
-				$objLogSistema->logMsg('ERRO - Erro ao criar arquivo csv com lotes com falha');
-			}
-		}
-	} else {
+	if(!rename($csv, DIR_PROCESSADOS.DS.getTime().'_'.basename($csv) )){
 		$objLogSistema->logMsg('ERRO - Erro ao mover arquivo de csv para pasta de processados');
-	}	
+	}
+
+	if(count($lotesComFalha) > 0){
+		$csvFalhas = gerarCsvLotesComFalha($pastaCsv, $lotesComFalha);
+		if($csvFalhas){
+			$objLogSistema->logMsg("Arquivo csv com lotes com falha criado: {$csvFalhas}" );
+		} else {
+			$objLogSistema->logMsg('ERRO - Erro ao criar arquivo csv com lotes com falha');
+		}
+	}
+
 }
 
 $objLogSistema->logMsg('Fim do script');

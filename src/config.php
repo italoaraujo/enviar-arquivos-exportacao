@@ -31,4 +31,11 @@ define("DIR_PROCESSADOS"		, DIR_ORIGEM_DADOS.DS.getenv('NOME_PASTA_PROCESSADOS')
 define("DIR_LOGS"				, DIR_ORIGEM_DADOS.DS.getenv('NOME_PASTA_LOG'));
 
 
+if(!is_dir(DIR_PROCESSADOS)){
+    mkdir(DIR_PROCESSADOS, 0777, true);
+}
+
+if(!is_dir(DIR_LOGS)){
+    mkdir(DIR_LOGS, 0777, true);
+}
 

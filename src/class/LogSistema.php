@@ -31,6 +31,9 @@ class LogSistema {
 	
 	function copiarArquivoLog($dirDestido){
 		echo "Copiar de {$this->arquivoLog} para {$dirDestido}".PHP_EOL;
+        if(!is_dir(dirname($dirDestido))){
+            mkdir(dirname($dirDestido), 0777, true);
+        }
 		copy($this->arquivoLog,$dirDestido);
 		echo PHP_EOL;
 		
