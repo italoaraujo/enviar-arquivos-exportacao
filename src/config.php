@@ -6,9 +6,10 @@ date_default_timezone_set('America/Fortaleza');
 
 
 //CARREGA CLASSES
-function __autoload($Class){
+function carregarClassesSistema($Class){
 	require("class/" . $Class . ".php");
 }
+spl_autoload_register('carregarClassesSistema');
 
 require('helpers.php');
 

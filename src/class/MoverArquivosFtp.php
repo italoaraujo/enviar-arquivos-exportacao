@@ -26,23 +26,24 @@ class MoverArquivosFtp
     {
         if ($this->conexao) {
             @ftp_close($this->conexao);
+            $this->conexao = null;
         }
 
-        $this->conexao = ftp_connect($this->host, $this->porta);
+        $timeout = 30;
+        $this->conexao = @ftp_connect($this->host, $this->porta, $timeout);
 
         if (!$this->conexao) {
-            throw new Exception('ERRO - Erro ao se conecta ao FTP');
+            throw new Exception('ERRO - Erro ao se conectar ao FTP');
         }
 
-
-        $loginResult = ftp_login($this->conexao, $this->usuario, $this->senha);
-
+        $loginResult = @ftp_login($this->conexao, $this->usuario, $this->senha);
 
         if (!$loginResult) {
             throw new Exception('ERRO - Erro ao logar ao FTP');
         }
 
-        ftp_pasv($this->conexao, true);
+        @ftp_pasv($this->conexao, true);
+        @ftp_set_option($this->conexao, FTP_TIMEOUT_SEC, $timeout);
     }
 
     public function reconectar()
@@ -53,7 +54,7 @@ class MoverArquivosFtp
     public function mkdir($pastaRemota)
     {
 		$this->verificarConexao();
-        return ftp_mkdir($this->conexao, $pastaRemota);
+        return @ftp_mkdir($this->conexao, $pastaRemota);
     }
 
     public function copy($arquivoOrigem, $arquivoDestino)
@@ -63,19 +64,18 @@ class MoverArquivosFtp
         return ftp_put($this->conexao,  $arquivoDestino, $arquivoOrigem, FTP_BINARY);
     }
 
-
     public function folderExists($pasta)
     {
-
 		$this->verificarConexao();
 
-        $diretorioAtual = ftp_pwd($this->conexao);
+        $diretorioAtual = @ftp_pwd($this->conexao);
+        if ($diretorioAtual === false) {
+            $diretorioAtual = '/';
+        }
 
         if (@ftp_chdir($this->conexao, $pasta)) {
-
             // volta para o diretório original
-            ftp_chdir($this->conexao, $diretorioAtual);
-
+            @ftp_chdir($this->conexao, $diretorioAtual);
             return true;
         }
 
@@ -97,10 +97,16 @@ class MoverArquivosFtp
     }
 	
     
-	public function __destruct()
+	public function fecharConexao()
     {
         if ($this->conexao) {
             @ftp_close($this->conexao);
+            $this->conexao = null;
         }
+    }
+
+	public function __destruct()
+    {
+        $this->fecharConexao();
     }
 }
